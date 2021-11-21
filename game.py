@@ -1,4 +1,3 @@
-from _typeshed import Self
 import pygame
 import random
 from enum import Enum
@@ -56,7 +55,7 @@ class SnakeGameAI:
         self.score = 0
         self.food = None
         self._place_food()
-        self.frame_iteration = 0
+        self.frame_iteration: int = 0
 
         
     def _place_food(self):
