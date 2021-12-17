@@ -9,3 +9,9 @@ Reinforcement learning is about a software agent learning how to do a task well,
 in an enviroment which gives feedback on how well its doing.
 
 Use of Deep Q Learning,
+
+TODO:
+
+- Korellations Model
+- Präsentation
+- 5 Modelle für KI

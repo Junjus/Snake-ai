@@ -98,6 +98,8 @@ class Agent:
             move = torch.argmax(prediction).item()
             final_move[move] = 1
 
+        return final_move
+
 def train():
     plot_scores = []
     plot_mean_scores = []
