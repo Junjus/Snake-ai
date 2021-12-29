@@ -32,13 +32,15 @@ BLACK = (0,0,0)
 BLOCK_SIZE = 20
 SPEED = 20
 
-class SnakeGameAI:
+class SnakeGameAI():
     
     def __init__(self, w=640, h=480):
         self.w = w
         self.h = h
         # init display
         self.display = pygame.display.set_mode((self.w, self.h))
+        #self.matrix = [[0 in range (self.h/BLOCK_SIZE)]
+        #    in range (self.w/BLOCK_SIZE)]
         pygame.display.set_caption('Snake')
         self.clock = pygame.time.Clock()
         self.reset()
@@ -62,8 +64,10 @@ class SnakeGameAI:
         x = random.randint(0, (self.w-BLOCK_SIZE )//BLOCK_SIZE )*BLOCK_SIZE 
         y = random.randint(0, (self.h-BLOCK_SIZE )//BLOCK_SIZE )*BLOCK_SIZE
         self.food = Point(x, y)
+        #self.matrix[y/BLOCK_SIZE][x/BLOCK_SIZE] = 3
         if self.food in self.snake:
             self._place_food()
+
         
     def play_step(self, action):
         self.frame_iteration += 1
@@ -151,3 +155,5 @@ class SnakeGameAI:
             y -= BLOCK_SIZE
             
         self.head = Point(x, y)
+        #self.matrix[y/BLOCK_SIZE][x/BLOCK_SIZE] = 2
+        

@@ -1,4 +1,6 @@
-from math import gamma
+from math import gamma, nan
+from typing import List
+from numpy.lib.type_check import nan_to_num
 import torch
 import random
 import numpy as np
@@ -98,13 +100,110 @@ class Agent:
             move = torch.argmax(prediction).item()
             final_move[move] = 1
 
-        return final_move
+        return final_move, move
+
+# calculates the correlation between moves and inputs
+def calcCorrelation(correlationState, anotherArg = 0):
+
+    correlationState = np.asarray(correlationState, np.int8)
+
+    
+    # Shows the direction the snake moves to
+    #
+    # moveDirsV:   -1:Down 0: None 1:Up
+    # moveDirsH:   -1:Left 0: None 1:Right
+    # moveDirs:     0:Up 1:Right 2:Down 3:Left
+    moveDirs = []
+    moveDirsH = []
+    moveDirsV = []
+    for idx in range(len(correlationState[0])):
+
+        if correlationState[4][idx] == 1:
+            moveDir = 3
+        if correlationState[5][idx] == 1:
+            moveDir = 1
+        if correlationState[6][idx] == 1:
+            moveDir = 0
+        if correlationState[7][idx] == 1:
+            moveDir = 2
+
+        if correlationState[0][idx] == 0:
+            moveDirs.append(moveDir)                # no change
+        elif correlationState[0][idx] == 1:
+            moveDirs.append((moveDir + 1)%4)        # turn right       
+        else:
+            moveDirs.append((moveDir - 1)%4)        # turn left
+
+    # Splites the moving direction into vertical and horizontal
+    for move in moveDirs:
+        if move == 0:   #Up
+            moveDirsV.append(1)
+            moveDirsH.append(0)
+        elif move == 1: #Right
+            moveDirsV.append(0)
+            moveDirsH.append(1)
+        elif move == 2: #Down
+            moveDirsV.append(-1)
+            moveDirsH.append(0)
+        else:           #Left
+            moveDirsV.append(0)
+            moveDirsH.append(-1)
+        
+    # creates a unified list of the directions of dangers
+    dangerDirs = []
+    for idx in range(len(correlationState[0])):
+        if correlationState[1][idx] == 1:
+            dangerDirs.append(1)                    # danger streight
+        elif correlationState[2][idx] == 1:
+            dangerDirs.append(2)                    # danger right
+        elif correlationState[3][idx] == 1:
+            dangerDirs.append(3)                    # danger left
+        else:
+            dangerDirs.append(0)                    # no danger
+
+    # creates a unified list of the direction of the food,
+    # split in vertical and horzontal
+    FoodsV = []
+    FoodsH = []
+    for idx in range(len(correlationState[0])):
+        if (correlationState[8][idx] == 1) and (correlationState[9][idx] == 0) and (correlationState[10][idx] == 0) and (correlationState[11][idx] == 0):#Left & None
+            FoodsH.append(0)
+            FoodsV.append(-1)
+        elif (correlationState[8][idx] == 1) and (correlationState[9][idx] == 0) and (correlationState[10][idx] == 1) and (correlationState[11][idx] == 0):#Left & Up
+            FoodsH.append(1)
+            FoodsV.append(-1)
+        elif (correlationState[8][idx] == 0) and (correlationState[9][idx] == 0) and (correlationState[10][idx] == 1) and (correlationState[11][idx] == 0):#None & Up
+            FoodsH.append(1)
+            FoodsV.append(0)
+        elif (correlationState[8][idx] == 0) and (correlationState[9][idx] == 1) and (correlationState[10][idx] == 1) and (correlationState[11][idx] == 0):#Right & Up
+            FoodsH.append(1)
+            FoodsV.append(1)
+        elif (correlationState[8][idx] == 0) and (correlationState[9][idx] == 1) and (correlationState[10][idx] == 0) and (correlationState[11][idx] == 0):#Right & None
+            FoodsH.append(0)
+            FoodsV.append(1)
+        elif (correlationState[8][idx] == 0) and (correlationState[9][idx] == 1) and (correlationState[10][idx] == 0) and (correlationState[11][idx] == 1):#Right & Down
+            FoodsH.append(-1)
+            FoodsV.append(1)
+        elif (correlationState[8][idx] == 0) and (correlationState[9][idx] == 0) and (correlationState[10][idx] == 0) and (correlationState[11][idx] == 1):#None & Down
+            FoodsH.append(-1)
+            FoodsV.append(1)
+        elif (correlationState[8][idx] == 1) and (correlationState[9][idx] == 0) and (correlationState[10][idx] == 0) and (correlationState[11][idx] == 1):#Left & Down
+            FoodsH.append(-1)
+            FoodsV.append(-1)
+
+    return np.mean([nan_to_num(np.corrcoef(FoodsH, moveDirsH)[0,1]), nan_to_num(np.corrcoef(FoodsV, moveDirsV)[0,1])]), nan_to_num(np.corrcoef(dangerDirs , correlationState[0])[0,1])
 
 def train():
     plot_scores = []
     plot_mean_scores = []
     total_score = 0
     record = 0
+
+    correlationFood = []
+    correlationDanger = []
+    
+    correlationState = [[],[],[],[],[],[],[],[],[],[],[],[]]
+
     agent = Agent()
     game = SnakeGameAI()
     while True:
@@ -112,7 +211,13 @@ def train():
         state_old = agent.get_state(game)
 
         # get move
-        final_move = agent.get_action(state_old)
+        final_move, move = agent.get_action(state_old)
+
+        for idx in range(12):
+            if(idx ==0):
+                correlationState[0].append(move)
+            else:
+                correlationState[idx].append(state_old[idx -1])
 
         # perform move and new state
         reward, done, score = game.play_step(final_move)
@@ -133,6 +238,16 @@ def train():
             if score > record:
                 record = score
                 agent.model.save()
+            
+            # gets the values of the corralation
+            corFood, corDan = calcCorrelation(correlationState)
+
+            # adds the values of the correlation to the list to display the changes in correlation
+            correlationFood.append(corFood)
+            correlationDanger.append(corDan)
+
+            # resets the list of the the moves used for calculating the correlations
+            correlationState = [[],[],[],[],[],[],[],[],[],[],[],[]]
 
             print('Game', agent.n_games, 'Score', score, 'Record', record)
 
@@ -140,7 +255,7 @@ def train():
             total_score += score
             mean_score = total_score / agent.n_games
             plot_mean_scores.append(mean_score)
-            plot(plot_scores, plot_mean_scores)
+            plot(plot_scores, plot_mean_scores, correlationFood, correlationDanger)
 
 
 
