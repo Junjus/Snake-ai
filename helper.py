@@ -3,7 +3,7 @@ from IPython import display
 
 plt.ion()
 
-def plot(scores, mean_scores, correlationFood, correlationDanger):
+def plot(scores, mean_scores):
     plt.clf()
 
     plt.title('Scores')
